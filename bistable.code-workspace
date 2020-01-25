@@ -1,0 +1,18 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {},
+	"extensions": {
+		"recommendations": [
+			"bungcip.better-toml",
+			"ikuyadeu.r",
+			"guidotapia2.unicode-math-vscode",
+			"julialang.language-julia",
+			"colinfang.markdown-julia",
+			"haberdashPI.terminal-polyglot"
+		]
+	}
+}

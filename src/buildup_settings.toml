@@ -1,0 +1,72 @@
+[stimulus]
+ramp_len_ms = 10
+pattern = "aba_"
+tone_len_fraction = 0.41666666666
+repeats = 30
+
+[freqs.analyze]
+delta_t_ms = 20
+freq_step = 2
+
+[freqs.bistable]
+input_bound = [0.005, 5.0]
+lowpass = 1.5
+lowpass_order = 3
+
+[scales.analyze]
+scales_cycoct = [0.5,1.0,2.0,4.0]
+bandonly = true
+
+[scales.bistable]
+input_bound = [0.005, 0.1]
+lowpass = 1.5
+lowpass_order = 3
+
+[rates]
+rates_Hz = [2, 4, 8, 16, 32]
+freq_limits_Hz = [400.0, 1200.0]
+bandonly = true
+
+[nmf]
+ncomponents = 2
+window_ms = 100
+delta_ms = 100
+skipframes = 0
+maxiter = 100
+tol = 1e-3
+
+[track.analyze]
+normalize = true
+min_norm = 0.2
+time_constants_s = [3.0]
+max_sources = 2
+source_prior_sds = [0.25,0.5,0.8]
+source_prior_sd_bias = [0,2000,0]
+source_prior_strengths_s = [15,20]
+source_prior_strength_bias = [0,4000]
+scale_ridge = 1e-8
+freq_ridge = 5.0
+freq_prior_bias = 0
+freq_prior_N = 2
+
+[track.bistable]
+normalize_start_s = 2.0
+input_bound = [0.0, 1.0]
+lowpass = 1.5
+lowpass_order = 3
+
+[mask]
+window_ms = 500
+delta_ms = 250
+
+[bandwidth_ratio]
+window_ms = 800
+delta_ms = 100
+threshold = 0.25
+full_band_ratio = 3
+thresh_ratio = 0.75
+level_threshold = 0.95
+
+[percept_lengths]
+min_length_ms = 250
+threshold = 0.2

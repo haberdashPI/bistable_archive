@@ -60,7 +60,6 @@ include("bimodel.jl")
 include("compress.jl")
 
 # data visualization
-include("plot_axes.jl")
 function __init__()
   @require RCall="6f49c342-dc21-5d91-9882-a32aef131414" include("rplots.jl")
 end

@@ -66,7 +66,7 @@ function load_params(params)
     elseif v"0.3" <= data["version"] < v"0.4"
       df = DataFrame()
       for col in keys(data["params"])
-        df[!,Symbol(col)] = withunit(data["params"][col],data["units"][col])
+        df[:,Symbol(col)] = withunit(data["params"][col],data["units"][col])
       end
       df
     end

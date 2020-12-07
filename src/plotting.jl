@@ -1,10 +1,8 @@
-using Gadfly
+# using Gadfly
 using CSV
 using DependentBootstrap
-using DataFramesMeta
+# using DataFramesMeta
 using ShiftedArrays
-using PlotAxes
-PlotAxes.set_backend!(:gadfly)
 
 function packing(x;maxpad=true,pad=0.5)
     vals = sort!(unique(x))
@@ -50,10 +48,10 @@ function rename_levels_for(df,vals;suffixes=[:c_a,:c_m])
   df[[suffixes;:level;vals]]
 end
 
-function DataFramesMeta.linq(::DataFramesMeta.SymbolParameter{:rename_levels},
-                             df, vals)
-  :(rename_levels($df,$vals))
-end
+# function DataFramesMeta.linq(::DataFramesMeta.SymbolParameter{:rename_levels},
+#                              df, vals)
+#   :(rename_levels($df,$vals))
+# end
 
 function colorscale(smap;reverse=false,minvalue,maxvalue,colorstart=minvalue,
                     colorstop=maxvalue,
@@ -112,29 +110,46 @@ function cumreduce(fn,xs)
   end
 end
 
+function onlyfirst(x)
+  @assert(length(x) == 1)
+  first(x)
+end
 function plot_stream_data(df,params,selections::Vector;exclude_human=false)
   sims = map(enumerate(selections)) do (i,sel)
     df_,params_ = select_data(df,params;sel...)
-    sim = by(stream_summary(df_,params_),:st) do g
-      DataFrame([findci(g.streaming)])
-    end
-    sim[!,:experiment] .= "simulation"
-    sim[!,:sid] .= "sel"*string(i)
 
-    sim
+    simvals = map(groupby(stream_summary(df_,params_),:st)) do g
+      findci(g.streaming)
+    end
+    # TODO: manuually combine to avoid bug
+    # sim = combine(simvals)
+    simg = DataFrame()
+    simg.st = [onlyfirst(x.st) for x in simvals]
+    simg.mean = [onlyfirst(x.mean) for x in simvals]
+    simg.lowerc = [onlyfirst(x.lowerc) for x in simvals]
+    simg.upperc = [onlyfirst(x.upperc) for x in simvals]
+
+    simg.experiment = "simulation"
+    simg.sid = ("sel"*string(i))
+
+    simg
   end |> x -> vcat(x...)
 
-  sim = by(sims,:st) do g
-    DataFrame([findci(g.mean)])
-  end
-  sim[!,:experiment] .= "simulation"
+  sim = map(groupby(sims,:st)) do g
+    DataFrame(;findci(g.mean)...)
+  end |> combine
+  sim.experiment = "simulation"
+
+  deletecols!(sim, :st_1)
 
   if !exclude_human
     hdata = human_data()
-    human = by(hdata.stream,:st) do g
-      DataFrame([findci(collect(skipmissing(g.streaming)))])
-    end
-    human[!,:experiment] .= "human"
+    human = map(groupby(hdata.stream,:st)) do g
+      DataFrame(;findci(collect(skipmissing(g.streaming)))...)
+    end |> combine
+    human.experiment = "human"
+
+    :upperc_1 ∈ names(human) && deletecols!(human, :upperc_1)
 
     vcat(sim,human)
   else
@@ -168,9 +183,7 @@ function plot_stream(df,others...;kwds...)
 end
 
 function plot_stream(stream)
-  stream = @transform(stream,
-                      pos = @.(log2(:st) -
-                               ifelse(:experiment == "human",0.05,-0.05)));
+  stream.pos = (log2(stream.st) - ifelse(stream.experiment == "human",0.05,-0.05));
 
   plot(stream,x=:pos,y=:mean,ymin=:lowerc,ymax=:upperc,
      color=:experiment,shape=:experiment,
@@ -259,43 +272,43 @@ function plot_lengths_qq(df,others...;kwds...)
   plot_lengths(plot_lengths_data(df,others...);kwds...)
 end
 
-function plot_lengths_hist((hlens,slens)::NamedTuple;xmax=20,binstep=1,
-                           density=false)
-  if density
-    df = DataFrame(length = [hlens;slens],
-                   experiment = [fill("human",length(hlens));
-                                 fill("simulation",length(slens))])
-    plot(df,x=:length,color=:experiment,
-         Stat.density, Geom.polygon(fill=true,preserve_order=true),
-         Guide.colorkey(pos=[0.65*Gadfly.w,-0.3*Gadfly.h]),
-         Theme(lowlight_color=c->RGBA{Float32}(c.r, c.g, c.b, 0.4)),
-         Coord.cartesian(xmax=xmax))
-  else
-    if any(hlens .> xmax)
-      @warn("Ignoring ~$(100round(mean(hlens .> xmax)))% of human data")
-    elseif any(slens .> xmax)
-      @warn("Ignoring ~$(100round(mean(slens .> xmax)))% of simulation data")
-    end
-    hheight = normalize(fit(Histogram,hlens,0:binstep:xmax))
-    sheight = normalize(fit(Histogram,slens,0:binstep:xmax))
-    lens = DataFrame(height = [hheight.weights; sheight.weights],
-                     experiment = repeat(["human","simulation"],
-                                         inner=length(hheight.weights)),
-                     length = repeat((0:binstep:xmax)[1:end-1].+binstep/2,2))
+# function plot_lengths_hist((hlens,slens)::NamedTuple;xmax=20,binstep=1,
+#                            density=false)
+#   if density
+#     df = DataFrame(length = [hlens;slens],
+#                    experiment = [fill("human",length(hlens));
+#                                  fill("simulation",length(slens))])
+#     plot(df,x=:length,color=:experiment,
+#          Stat.density, Geom.polygon(fill=true,preserve_order=true),
+#          Guide.colorkey(pos=[0.65*Gadfly.w,-0.3*Gadfly.h]),
+#          Theme(lowlight_color=c->RGBA{Float32}(c.r, c.g, c.b, 0.4)),
+#          Coord.cartesian(xmax=xmax))
+#   else
+#     if any(hlens .> xmax)
+#       @warn("Ignoring ~$(100round(mean(hlens .> xmax)))% of human data")
+#     elseif any(slens .> xmax)
+#       @warn("Ignoring ~$(100round(mean(slens .> xmax)))% of simulation data")
+#     end
+#     hheight = normalize(fit(Histogram,hlens,0:binstep:xmax))
+#     sheight = normalize(fit(Histogram,slens,0:binstep:xmax))
+#     lens = DataFrame(height = [hheight.weights; sheight.weights],
+#                      experiment = repeat(["human","simulation"],
+#                                          inner=length(hheight.weights)),
+#                      length = repeat((0:binstep:xmax)[1:end-1].+binstep/2,2))
 
-    hplot = plot(lens,x=:length,color=:experiment,y=:height,
-                 ygroup=:experiment,
-                 Guide.colorkey(pos=[0.65*Gadfly.w,-0.3*Gadfly.h]),
-                 Scale.color_discrete_manual("darkgray","lightgray"),
-                 Geom.subplot_grid(Guide.xlabel("log-z-scored length",
-                                                orientation=:horizontal),
-                                   Guide.ylabel("density",orientation=:vertical),
-                                   Coord.cartesian(xmin=0,xmax=xmax),
-                                   Geom.bar,free_x_axis=true),
-                 Theme(discrete_highlight_color=x->"black",
-                       bar_highlight=x->"black"))
-  end
-end
+#     hplot = plot(lens,x=:length,color=:experiment,y=:height,
+#                  ygroup=:experiment,
+#                  Guide.colorkey(pos=[0.65*Gadfly.w,-0.3*Gadfly.h]),
+#                  Scale.color_discrete_manual("darkgray","lightgray"),
+#                  Geom.subplot_grid(Guide.xlabel("log-z-scored length",
+#                                                 orientation=:horizontal),
+#                                    Guide.ylabel("density",orientation=:vertical),
+#                                    Coord.cartesian(xmin=0,xmax=xmax),
+#                                    Geom.bar,free_x_axis=true),
+#                  Theme(discrete_highlight_color=x->"black",
+#                        bar_highlight=x->"black"))
+#   end
+# end
 
 function plot_fit(df,params;showci=true,
                   alpha=0.05,resample=400,kwds...)

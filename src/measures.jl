@@ -7,7 +7,7 @@ meansqr(x) = mean(x.^2)
 function select_params(params;kwds...)
   condition = trues(size(params,1))
   for (var,val) in pairs(kwds)
-    condition .&= ustrip.(abs.(params[!,var] .- val)) .<= 1e-2
+    condition .&= ustrip.(abs.(params[:,var] .- val)) .<= 1e-2
   end
   params[condition,:pindex]
 end
@@ -144,7 +144,7 @@ function stream_summary(data,params;bound=true,bound_threshold=0.8)
       DataFrame(streaming = streamprop(g.percepts,g.length,bound=false))
     end
   end
-  result[!,:sid] .= 0
+  insertcols!(result, 1, sid = fill(0, size(result, 1)))
   for g in groupby(result,:st)
     g.sid .= 1:size(g,1)
   end
@@ -197,9 +197,9 @@ function human_error_by_sid()
   str_error = map(groupby(stream,[:sid,:experiment])) do str
     stream_rms(str,means)
   end |> combine
-  len_error = map(groupby(lengths,[:sid])) do len
+  len_error = combine(groupby(lengths,[:sid])) do len
     ksstat(len.lengths,meanl.lengths)
-  end |> combine
+  end
 
   str_error, len_error
 end
@@ -209,7 +209,7 @@ asnum(x::String) = x == "NA" ? missing : parse(Float64,x)
 function human_stream_data()
   df1 = CSV.read(joinpath(@__DIR__,"..","analysis","yerkes","stream_prop.csv"))
   df2 = CSV.read(joinpath(@__DIR__,"..","analysis","context","stream_prop.csv"))
-  df2[!,:experiment] .= "3"
+  insertcols!(df2, 1, experiment = fill("3", size(df2, 1)))
   df = vcat(df1,df2)
   df.sid = string.(df.sid)
   df.streaming = asnum.(df.streaming)
@@ -225,7 +225,7 @@ function human_length_data()
   rename!(df,:phase => :lengths)
   df.lengths = asnum.(df.lengths)/10000 # from micorseconds to seconds
   rename!(df,:subject => :sid)
-  @where(df,:code .== 140)
+  df[df.code .== 140,:]
 end
 
 function filter_minlength(len,sid,x)
@@ -283,7 +283,7 @@ function buildup_image(buildup_data;delta,length)
   times = range(0,len,step=delta)
   buildup = DataFrame(time=repeat(times,outer=length(runs)),
                       run=repeat(1:length(runs),inner=length(times)))
-  buildup[!,:value] .= 0.0
+  buildup[:,:value] .= 0.0
 
   for (i,run) in enumerate(runs)
     build_run = view(buildup,buildup.run .== i,:)
@@ -295,7 +295,7 @@ end
 
 function buildup_mean(buildup_data;delta,length)
   buildup = DataFrame(time=range(0,length,step=delta))
-  buildup[!,:value] .= 0.0
+  buildup[:,:value] .= 0.0
   runs = groupby(buildup_data,:run)
   for run in runs
     update_buildup!(buildup.value,buildup.time,run)
